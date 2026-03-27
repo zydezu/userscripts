@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Paywall Bypass Script
 // @namespace    http://tampermonkey.net/
-// @version      1.3.0
+// @version      1.4.0
 // @description  Mobile and desktop-friendly paywall bypass with dropdown menu and right-click options. Floating button now optional!
 // @author       sharmanhall
 // @license      MIT
@@ -381,7 +381,6 @@
 
         // Add dropdown options
         const options = [
-            { text: 'Archive.ph', link: getArchivePageLink('https://archive.ph/newest/') },
             { text: 'Archive.is', link: getArchivePageLink('https://archive.is/newest/') },
             { text: 'RemovePaywall', link: getArchivePageLink('https://removepaywall.com/search?url=') },
             { text: 'Archive.org', link: getArchivePageLink('https://web.archive.org/web/') },
