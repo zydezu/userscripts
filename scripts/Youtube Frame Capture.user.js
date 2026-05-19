@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Youtube frame capture
+// @name         Youtube Frame Capture
 // @namespace    https://github.com/stroncis
-// @version      0.1
+// @version      0.2
 // @description  Captures current frame of the video and lets to disable any UI elements that overlay video.
 // @author       Martynas Shnaresys
 // @match        https://*.youtube.com/*
@@ -547,15 +547,26 @@ const createOverlayTextElement = (data = {}) => {
     element.style.position = 'absolute';
     element.style.margin = '4px';
     element.style.color = 'var(--yt-sys-color-baseline--static-brand-white)';
-    element.style['background-color'] = 'var(--yt-sys-color-baseline--overlay-background-heavy)';
+    element.style['backdrop-filter'] = 'blur(4px)';
+    element.style['background-color'] = 'var(--yt-sys-color-baseline--frosted-glass-desktop)';
     element.style.padding = '3px 4px';
     element.style['min-height'] = '12px';
     element.style['border-radius'] = '4px';
+    element.style['text-shadow'] = '0px 0px 4px var(--yt-sys-color-baseline--overlay-background-solid)';
     element.style['font-size'] = 'var(--yt-badge-font-size,1.2rem)';
     element.style['font-weight'] = '500';
     element.style['line-height'] = 'var(--yt-badge-line-height-size, 1.2rem)';
     element.style['letter-spacing'] = 'var(--yt-badge-letter-spacing, 0.5px)';
     element.style.cursor = active ? 'pointer' : 'default';
+    if (active) {
+        element.style.transition = 'background-color 0.2s ease';
+        element.addEventListener('mouseenter', () => {
+            element.style['background-color'] = 'var(--yt-sys-color-baseline--button-chip-background-hover)';
+        });
+        element.addEventListener('mouseleave', () => {
+            element.style['background-color'] = 'var(--yt-sys-color-baseline--overlay-background-heavy)';
+        });
+    }
     return element;
 };
 
@@ -590,10 +601,12 @@ const createTimeOverlayElement = time => {
     timeLink.style.right = '0';
     timeLink.style.margin = '4px';
     timeLink.style.color = 'var(--yt-sys-color-baseline--static-brand-white)';
-    timeLink.style['background-color'] = 'var(--yt-sys-color-baseline--overlay-background-heavy)';
+    timeLink.style['backdrop-filter'] = 'blur(4px)';
+    timeLink.style['background-color'] = 'var(--yt-sys-color-baseline--frosted-glass-desktop)';
     timeLink.style.padding = '3px 4px';
     timeLink.style['min-height'] = '12px';
     timeLink.style['border-radius'] = '4px';
+    timeLink.style['text-shadow'] = '0px 0px 4px var(--yt-sys-color-baseline--overlay-background-solid)';
     timeLink.style['font-size'] = 'var(--yt-badge-font-size,1.2rem)';
     timeLink.style['font-weight'] = '500';
     timeLink.style['line-height'] = 'var(--yt-badge-line-height-size,1.2rem)';
@@ -1134,10 +1147,9 @@ function consoleGlobals() {
  * Creates a modal overlay for full-size image preview.
  *
  * @param {string} imageSrc The base64 image source
- * @param {string} imageTitle The title/filename for the image
  * @returns {HTMLDivElement} Modal container element
  */
-const createImageModal = (imageSrc, imageTitle) => {
+const createImageModal = (imageSrc) => {
     const modal = document.createElement('div');
     modal.id = 'image-modal';
     modal.style.position = 'fixed';
@@ -1171,20 +1183,6 @@ const createImageModal = (imageSrc, imageTitle) => {
     fullImage.style.border = '2px solid rgba(100, 149, 237, 0.5)';
     fullImage.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.5)';
 
-    // Image title overlay
-    const titleOverlay = document.createElement('div');
-    titleOverlay.style.position = 'absolute';
-    titleOverlay.style.bottom = '10px';
-    titleOverlay.style.left = '50%';
-    titleOverlay.style.transform = 'translateX(-50%)';
-    titleOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-    titleOverlay.style.color = 'white';
-    titleOverlay.style.padding = '8px 16px';
-    titleOverlay.style.borderRadius = '4px';
-    titleOverlay.style.fontSize = '14px';
-    titleOverlay.style.fontFamily = 'Arial, sans-serif';
-    titleOverlay.textContent = imageTitle || 'Screenshot Preview';
-
     // Close button
     const closeButton = document.createElement('div');
     closeButton.textContent = '×';
@@ -1212,7 +1210,6 @@ const createImageModal = (imageSrc, imageTitle) => {
     });
 
     modalContent.appendChild(fullImage);
-    modalContent.appendChild(titleOverlay);
     modalContent.appendChild(closeButton);
     modal.appendChild(modalContent);
 
@@ -1259,9 +1256,8 @@ const openImageModal = event => {
 
     const imageContainer = imageElement.closest('[id^="screenshot-"]');
     const frameTimeAttr = imageContainer ? imageContainer.id.split('-').pop() : '0';
-    const imageTitle = `Screenshot at ${frameTimeAttr}s`;
 
-    const modal = createImageModal(imageSrc, imageTitle);
+    const modal = createImageModal(imageSrc);
 
     modal.addEventListener('click', () => {
         hideModal(modal);
