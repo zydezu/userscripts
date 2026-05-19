@@ -1157,20 +1157,20 @@ const createImageModal = (imageSrc) => {
     modal.style.left = '0';
     modal.style.width = '100%';
     modal.style.height = '100%';
-    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
     modal.style.zIndex = '10000';
     modal.style.display = 'flex';
     modal.style.alignItems = 'center';
     modal.style.justifyContent = 'center';
     modal.style.opacity = '0';
-    modal.style.transition = 'opacity 0.3s ease-in-out';
+    modal.style.transition = 'opacity 0.1s ease-in-out';
     modal.style.cursor = 'pointer';
 
     // Modal content container
     const modalContent = document.createElement('div');
     modalContent.style.position = 'relative';
-    modalContent.style.maxWidth = '95%';
-    modalContent.style.maxHeight = '95%';
+    modalContent.style.maxWidth = '90%';
+    modalContent.style.maxHeight = '90%';
     modalContent.style.textAlign = 'center';
 
     // Full-size image
@@ -1179,8 +1179,6 @@ const createImageModal = (imageSrc) => {
     fullImage.style.maxWidth = '100%';
     fullImage.style.maxHeight = '100%';
     fullImage.style.objectFit = 'contain';
-    fullImage.style.borderRadius = '8px';
-    fullImage.style.border = '2px solid rgba(100, 149, 237, 0.5)';
     fullImage.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.5)';
 
     // Close button
