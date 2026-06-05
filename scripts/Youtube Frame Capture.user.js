@@ -200,18 +200,7 @@ const setShortUrl = id => {
  *
  * @returns {object} An object containing all the query parameters.
  */
-const parseQueryParams = url => {
-    const queryParams = {};
-    const queryString = url.split('?')[1];
-    if (queryString) {
-        const pairs = queryString.split('&');
-        pairs.forEach(pair => {
-            const [key, value] = pair.split('=');
-            queryParams[key] = decodeURIComponent(value || '');
-        });
-    }
-    return queryParams;
-};
+const parseQueryParams = url => Object.fromEntries(new URL(url).searchParams);
 
 /**
  * Extracts YT video id.
@@ -627,18 +616,18 @@ const createTimeOverlayElement = time => {
 };
 
 /**
- * Creates overlay displaying width of the captured image.
+ * Creates overlay displaying height of the captured image.
  *
- * @param {number} width frame with
+ * @param {number} height frame has
  *
- * @returns {HTMLParagraphElement} Returns image width overlay element
+ * @returns {HTMLParagraphElement} Returns image height overlay element
  */
-const createWidthOverlayElement = width => {
+const createHeightOverlayElement = height => {
     const overlay = createOverlayTextElement();
     overlay.style.bottom = '0';
     overlay.style.left = '0';
 
-    const text = document.createTextNode(`${width}px`);
+    const text = document.createTextNode(`${height}px`);
     overlay.appendChild(text);
     return overlay;
 };
@@ -672,9 +661,7 @@ const convertImageToBlob = async image => {
     const width = image.naturalWidth;
     const height = image.naturalHeight;
     const canvas = getCanvas({ image, width, height });
-    const blob = await new Promise(resolve => canvas.toBlob(resolve));
-    canvas.onerror = err => console.error('#YtGr4 Canvas error:', err);
-    return blob;
+    return new Promise(resolve => canvas.toBlob(resolve));
 };
 
 /**
@@ -924,10 +911,10 @@ const createImageHolder = () => {
  *
  * @returns {HTMLDivElement}
  */
-const createOverlaysHolder = (time, width) => {
+const createOverlaysHolder = (time, height) => {
     const element = document.createElement('div');
     element.appendChild(createTimeOverlayElement(time));
-    element.appendChild(createWidthOverlayElement(width));
+    element.appendChild(createHeightOverlayElement(height));
     element.appendChild(createCopyOverlayElement());
     element.appendChild(createSaveOverlayElement(time));
     element.appendChild(createRemoveOverlayElement());
@@ -940,13 +927,13 @@ const createOverlaysHolder = (time, width) => {
  * @param {CanvasImage} frame frame data with time and image
  */
 const addImageToStrip = async frame => {
-    const { canvas, time, width } = frame;
+    const { canvas, time, height } = frame;
 
     const image = getImageElement(canvas);
     const imageHolder = createImageHolder();
     imageHolder.appendChild(image);
 
-    const overlaysHolder = createOverlaysHolder(time, width);
+    const overlaysHolder = createOverlaysHolder(time, height);
     imageHolder.appendChild(overlaysHolder);
 
     const activeLink = createActiveLink();
@@ -981,7 +968,7 @@ const addDefaultThumbnail = async () => {
     const width = metaData.thumbnail.width;
     const height = metaData.thumbnail.height;
     const canvas = getCanvas({ image: metaData.thumbnail, width, height });
-    addImageToStrip({ canvas, width, time: 0 });
+    addImageToStrip({ canvas, height, time: 0 });
 };
 
 /**
@@ -1001,7 +988,7 @@ const initScreenshotStrip = async () => {
  * @param {boolean | undefined} isResized if true, frame is resized to DOM element's dimensions
  */
 const getScreenshotImage = async isResized => {
-    const videoStream = document.querySelector('.video-stream');
+    const videoStream = [...document.querySelectorAll('.video-stream')].find(v => v.videoWidth > 0);
     const frame = captureFrame(videoStream, isResized);
     if (!frame.width) {
         console.log('#YtGr4 Cannot access frame, possibly video not loaded. OVERLAY NOW!');
@@ -1011,6 +998,11 @@ const getScreenshotImage = async isResized => {
     const screenshotStripExists = document.querySelector('#screenshot-strip');
     if (!screenshotStripExists) await initScreenshotStrip();
     addImageToStrip(frame);
+
+    // auto-copy to clipboard
+    const blob = await new Promise(resolve => frame.canvas.toBlob(resolve));
+    await writeBlobToClipboard(blob);
+
     return null;
 };
 
@@ -1157,60 +1149,55 @@ const createImageModal = (imageSrc) => {
     modal.style.left = '0';
     modal.style.width = '100%';
     modal.style.height = '100%';
-    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    modal.style['background-color'] = 'var(--yt-sys-color-baseline--themed-overlay-background)';
     modal.style.zIndex = '10000';
     modal.style.display = 'flex';
-    modal.style.alignItems = 'center';
-    modal.style.justifyContent = 'center';
+    modal.style['align-items'] = 'center';
+    modal.style['justify-content'] = 'center';
     modal.style.opacity = '0';
     modal.style.transition = 'opacity 0.1s ease-in-out';
-    modal.style.cursor = 'pointer';
 
-    // Modal content container
     const modalContent = document.createElement('div');
     modalContent.style.position = 'relative';
-    modalContent.style.maxWidth = '90%';
-    modalContent.style.maxHeight = '90%';
-    modalContent.style.textAlign = 'center';
+    modalContent.style['max-width'] = '90%';
+    modalContent.style['max-height'] = '90%';
 
-    // Full-size image
     const fullImage = document.createElement('img');
     fullImage.src = imageSrc;
-    fullImage.style.maxWidth = '100%';
-    fullImage.style.maxHeight = '100%';
-    fullImage.style.objectFit = 'contain';
-    fullImage.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.5)';
+    fullImage.style['max-width'] = '100%';
+    fullImage.style['max-height'] = '90vh';
+    fullImage.style['object-fit'] = 'contain';
+    fullImage.style['border-radius'] = '4px';
+    fullImage.style['box-shadow'] = '0 8px 32px var(--yt-sys-color-baseline--shadow-medium)';
+    fullImage.style.display = 'block';
 
-    // Close button
     const closeButton = document.createElement('div');
     closeButton.textContent = '×';
     closeButton.style.position = 'absolute';
-    closeButton.style.top = '10px';
-    closeButton.style.right = '10px';
-    closeButton.style.fontSize = '30px';
-    closeButton.style.color = 'white';
-    closeButton.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-    closeButton.style.width = '40px';
-    closeButton.style.height = '40px';
-    closeButton.style.borderRadius = '50%';
+    closeButton.style.top = '-16px';
+    closeButton.style.right = '-16px';
+    closeButton.style['font-size'] = '20px';
+    closeButton.style['line-height'] = '1';
+    closeButton.style.color = 'var(--yt-sys-color-baseline--text-primary)';
+    closeButton.style['background-color'] = 'var(--yt-sys-color-baseline--overlay-background-heavy)';
+    closeButton.style.width = '32px';
+    closeButton.style.height = '32px';
+    closeButton.style['border-radius'] = '50%';
     closeButton.style.display = 'flex';
-    closeButton.style.alignItems = 'center';
-    closeButton.style.justifyContent = 'center';
+    closeButton.style['align-items'] = 'center';
+    closeButton.style['justify-content'] = 'center';
     closeButton.style.cursor = 'pointer';
-    closeButton.style.transition = 'background-color 0.2s';
-
+    closeButton.style.transition = 'background-color 0.2s ease';
     closeButton.addEventListener('mouseenter', () => {
-        closeButton.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+        closeButton.style['background-color'] = 'var(--yt-sys-color-baseline--button-chip-background-hover)';
     });
-
     closeButton.addEventListener('mouseleave', () => {
-        closeButton.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        closeButton.style['background-color'] = 'var(--yt-sys-color-baseline--overlay-background-heavy)';
     });
 
     modalContent.appendChild(fullImage);
     modalContent.appendChild(closeButton);
     modal.appendChild(modalContent);
-
     return modal;
 };
 
@@ -1253,7 +1240,6 @@ const openImageModal = event => {
     const imageSrc = imageElement.src;
 
     const imageContainer = imageElement.closest('[id^="screenshot-"]');
-    const frameTimeAttr = imageContainer ? imageContainer.id.split('-').pop() : '0';
 
     const modal = createImageModal(imageSrc);
 
