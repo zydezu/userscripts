@@ -1,15 +1,13 @@
 // ==UserScript==
-// @name         Fixupx Copy to Clipboard Button
+// @name         embed.boysare.moe Copy to Clipboard Button
 // @namespace    http://tampermonkey.net/
-// @version      1.5
-// @description  Adds a copy to clipboard button to X posts that set it to fixupx.com instead of twitter.com
+// @version      1.7
+// @description  Adds a copy to clipboard button to X posts that set it to embed.boysare.moe/
 // @author       Sickerine
 // @license      MIT
 // @match        https://x.com/*
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=twitter.com
+// @icon         https://boysare.moe/assets/brand/status.jpg
 // @grant        none
-// @downloadURL https://update.greasyfork.org/scripts/493989/fixupx%20copy%20to%20clipboard%20button.user.js
-// @updateURL https://update.greasyfork.org/scripts/493989/fixupx%20copy%20to%20clipboard%20button.meta.js
 // ==/UserScript==
 
 (function () {
@@ -51,19 +49,14 @@
             newDiv.innerHTML = defaultSVG;
             newDiv.onclick = (e) => {
                 e.preventDefault();
-                let href = article.querySelector('a[href*="/status/"]').href;
-                href = href.replace(/\/status\/(\d+).*/, '/status/$1')
-                    .replace('twitter.com', 'fixupx.com')
-                    .replace('x.com', 'fixupx.com');
+                const href = getPostUrl(article);
+                if (!href) return console.warn('no permalink found', article);
                 newDiv.innerHTML = clickedSVG;
-                setTimeout(() => {
-                    newDiv.innerHTML = defaultSVG;
-                }, 1000);
-                navigator.clipboard.writeText(href).then(() => {
-                    console.log('Copied to clipboard: ' + href);
-                }, (err) => {
-                    console.error('Failed to copy to clipboard: ' + href, err);
-                });
+                setTimeout(() => { newDiv.innerHTML = defaultSVG; }, 1000);
+                navigator.clipboard.writeText(href).then(
+                    () => console.log('Copied to clipboard: ' + href),
+                    err => console.error('Failed to copy to clipboard: ' + href, err)
+                );
             };
             sixthParent.insertBefore(newDiv, secondChild);
         }
@@ -71,6 +64,22 @@
             console.error(e);
             console.log(article)
         }
+    }
+
+    function getPostUrl(article) {
+        // quoted posts are nested in a div[role="link"] inside the same article
+        const nested = [...article.querySelectorAll('div[role="link"]')];
+        const links = [...article.querySelectorAll('a[href*="/status/"]')]
+        .filter(a => !nested.some(n => n.contains(a)));
+
+        // the post's own permalink is the one wrapping the timestamp
+        const self = links.find(a => a.querySelector('time')) || links[0];
+        if (!self) return null;
+
+        return self.href
+            .replace(/\/status\/(\d+).*/, '/status/$1')
+            .replace('twitter.com', 'embed.boysare.moe/x.com')
+            .replace('x.com', 'embed.boysare.moe/x.com');
     }
 
     const observer = new MutationObserver((mutations) => {
