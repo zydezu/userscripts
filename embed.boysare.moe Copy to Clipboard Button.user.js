@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         embed.boysare.moe Copy to Clipboard Button
 // @namespace    http://tampermonkey.net/
-// @version      1.7
+// @version      1.8
 // @description  Adds a copy to clipboard button to X posts that set it to embed.boysare.moe/
 // @author       Sickerine
 // @license      MIT
@@ -12,6 +12,46 @@
 
 (function () {
     'use strict';
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    function waitFor(fn, timeout = 2000, step = 50) {
+        const end = Date.now() + timeout;
+        return new Promise(resolve => {
+            const tick = () => {
+                let v = null;
+                try { v = fn(); } catch (_) { v = null; }
+                if (v) return resolve(v);
+                if (Date.now() >= end) return resolve(null);
+                setTimeout(tick, step);
+            };
+            tick();
+        });
+    }
+
+    function getShareButton(article) {
+        let btn = article.querySelector('button[aria-label="Share"]');
+        if (btn) return btn;
+        return [...article.querySelectorAll('button')].find(b => /share/i.test(b.getAttribute('aria-label') || ''));
+    }
+
+    async function triggerNativeShare(article) {
+        const btn = getShareButton(article);
+        if (!btn) return;
+        btn.click();
+        const menu = await waitFor(() => document.querySelector('[role="menu"]'), 2000);
+        if (!menu) return;
+        const copyItem = [...menu.querySelectorAll('[role="menuitem"]')]
+            .find(el => /copy link/i.test((el.textContent || '').trim()));
+        if (copyItem) copyItem.click();
+        await sleep(300);
+        // close the share box if it is still open
+        if (document.querySelector('[role="menu"]')) {
+            document.dispatchEvent(new KeyboardEvent('keydown', {
+                key: 'Escape', code: 'Escape', keyCode: 27, which: 27, bubbles: true, cancelable: true,
+            }));
+        }
+    }
 
     function apply(article) {
         if (article.tagName == 'DIV') article = article.querySelector('article') || article.closest('article');
@@ -47,16 +87,26 @@
             newDiv.style.cursor = 'pointer';
             newDiv.style.display = 'flex';
             newDiv.innerHTML = defaultSVG;
-            newDiv.onclick = (e) => {
+            newDiv.onclick = async (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 const href = getPostUrl(article);
                 if (!href) return console.warn('no permalink found', article);
                 newDiv.innerHTML = clickedSVG;
                 setTimeout(() => { newDiv.innerHTML = defaultSVG; }, 1000);
-                navigator.clipboard.writeText(href).then(
-                    () => console.log('Copied to clipboard: ' + href),
-                    err => console.error('Failed to copy to clipboard: ' + href, err)
-                );
+
+                // Trigger X's native share flow (opens the share box and clicks "Copy link")
+                try {
+                    await triggerNativeShare(article);
+                } catch (err) {
+                    console.error('Failed to trigger native share: ', err);
+                }
+                try {
+                    await navigator.clipboard.writeText(href);
+                    console.log('Copied to clipboard: ' + href);
+                } catch (err) {
+                    console.error('Failed to copy to clipboard: ' + href, err);
+                }
             };
             sixthParent.insertBefore(newDiv, secondChild);
         }
@@ -70,7 +120,7 @@
         // quoted posts are nested in a div[role="link"] inside the same article
         const nested = [...article.querySelectorAll('div[role="link"]')];
         const links = [...article.querySelectorAll('a[href*="/status/"]')]
-        .filter(a => !nested.some(n => n.contains(a)));
+            .filter(a => !nested.some(n => n.contains(a)));
 
         // the post's own permalink is the one wrapping the timestamp
         const self = links.find(a => a.querySelector('time')) || links[0];

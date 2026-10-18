@@ -17,76 +17,75 @@
 // ==/UserScript==
 
 (function () {
-  'use strict';
+    'use strict';
 
-  const redirectHost = 'red.artemislena.eu';
-  const phrases = [
-    /verify your birthday to continue/i,
-    /add your birthday/i
-  ];
+    const redirectHost = 'redlib.catsarch.com/';
+    const phrases = [
+        /verify your birthday to continue/i,
+        /add your birthday/i
+    ];
 
-  function isGatePresent() {
-    try {
-      const slotEls = document.querySelectorAll('[slot="title"]');
-      for (const el of slotEls) {
-        const txt = (el.innerText || el.textContent || '').trim();
-        if (!txt) continue;
-        for (const rx of phrases) if (rx.test(txt)) return true;
-      }
+    function isGatePresent() {
+        try {
+            const slotEls = document.querySelectorAll('[slot="title"]');
+            for (const el of slotEls) {
+                const txt = (el.innerText || el.textContent || '').trim();
+                if (!txt) continue;
+                for (const rx of phrases) if (rx.test(txt)) return true;
+            }
 
-      if (document.body && document.body.innerText) {
-        const bodyText = document.body.innerText;
-        for (const rx of phrases) if (rx.test(bodyText)) return true;
-      }
-    } catch (e) {
+            if (document.body && document.body.innerText) {
+                const bodyText = document.body.innerText;
+                for (const rx of phrases) if (rx.test(bodyText)) return true;
+            }
+        } catch (e) {
+        }
+        return false;
     }
-    return false;
-  }
 
-  function doRedirect() {
-    try {
-      const u = new URL(window.location.href);
-      u.hostname = redirectHost;
-      u.search = '';
-      u.hash = '';
-      window.location.assign(u.toString());
-    } catch (err) {
-      const hrefNoQuery = window.location.href.split('?')[0];
-      window.location.assign(hrefNoQuery.replace(window.location.hostname, redirectHost));
+    function doRedirect() {
+        try {
+            const u = new URL(window.location.href);
+            u.hostname = redirectHost;
+            u.search = '';
+            u.hash = '';
+            window.location.assign(u.toString());
+        } catch (err) {
+            const hrefNoQuery = window.location.href.split('?')[0];
+            window.location.assign(hrefNoQuery.replace(window.location.hostname, redirectHost));
+        }
     }
-  }
 
-  function checkAndRedirectOnce() {
-    if (isGatePresent()) {
-      console.log('[Userscript] Birthday gate detected — redirecting to', redirectHost);
-      doRedirect();
-    } else {
-      console.log('[Userscript] No birthday gate detected (checked).');
+    function checkAndRedirectOnce() {
+        if (isGatePresent()) {
+            console.log('[Userscript] Birthday gate detected — redirecting to', redirectHost);
+            doRedirect();
+        } else {
+            console.log('[Userscript] No birthday gate detected (checked).');
+        }
     }
-  }
 
-  setTimeout(checkAndRedirectOnce, 50);
+    setTimeout(checkAndRedirectOnce, 50);
 
-  (function hookHistoryEvents() {
-    const wrap = (orig) => function () {
-      const rv = orig.apply(this, arguments);
-      window.dispatchEvent(new Event('locationchange'));
-      return rv;
-    };
-    if (history.pushState) history.pushState = wrap(history.pushState);
-    if (history.replaceState) history.replaceState = wrap(history.replaceState);
-    window.addEventListener('popstate', () => window.dispatchEvent(new Event('locationchange')));
-    window.addEventListener('locationchange', () => setTimeout(checkAndRedirectOnce, 500));
-  })();
+    (function hookHistoryEvents() {
+        const wrap = (orig) => function () {
+            const rv = orig.apply(this, arguments);
+            window.dispatchEvent(new Event('locationchange'));
+            return rv;
+        };
+        if (history.pushState) history.pushState = wrap(history.pushState);
+        if (history.replaceState) history.replaceState = wrap(history.replaceState);
+        window.addEventListener('popstate', () => window.dispatchEvent(new Event('locationchange')));
+        window.addEventListener('locationchange', () => setTimeout(checkAndRedirectOnce, 500));
+    })();
 
-  const observer = new MutationObserver((mutations) => {
-    if (isGatePresent()) {
-      observer.disconnect();
-      doRedirect();
-    }
-  });
+    const observer = new MutationObserver((mutations) => {
+        if (isGatePresent()) {
+            observer.disconnect();
+            doRedirect();
+        }
+    });
 
-  observer.observe(document.documentElement || document, { childList: true, subtree: true });
-  setTimeout(() => observer.disconnect(), 5000);
+    observer.observe(document.documentElement || document, { childList: true, subtree: true });
+    setTimeout(() => observer.disconnect(), 5000);
 })();
-

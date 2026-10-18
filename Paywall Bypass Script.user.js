@@ -263,7 +263,7 @@
 // @updateURL https://update.greasyfork.org/scripts/495817/Paywall%20Bypass%20Script%20%2812ftio%2C%20Google%20Cache%2C%20PaywallBustercom%29.meta.js
 // ==/UserScript==
 
-(function() {
+(function () {
     'use strict';
 
     // Configuration - Load saved preference or default to true

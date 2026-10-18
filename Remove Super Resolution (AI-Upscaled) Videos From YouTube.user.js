@@ -59,7 +59,7 @@
         let sr_hit = false;
         for (const label of Object.keys(POSSIBLE_RESOLUTIONS)) {
             if (!resolutions.includes(label) && sr_hit) {
-                return { res: POSSIBLE_RESOLUTIONS[label], res_label: label } ;
+                return { res: POSSIBLE_RESOLUTIONS[label], res_label: label };
             }
             if (resolutions.includes(label)) sr_hit = true;
         }
