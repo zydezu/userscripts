@@ -12,7 +12,7 @@ If scripts aren't working, ensure your browser is up-to-date.
 
 <img width="636" height="296" alt="image" src="https://github.com/user-attachments/assets/707a42b0-caf9-4564-ad5f-c569799cbc0c" />
 
-<img width="700" height="192" alt="image" src="https://github.com/user-attachments/assets/517a36ff-c0f5-4ff9-9f23-ffc850b2fdf8" />
+<img width="700" height="192" alt="image" src="https://github.com/user-attachments/assets/517a36ff-c0f5-4ff9-9f23-ffc850b2fdf8" /><br/>
 
 
 > [!NOTE]
