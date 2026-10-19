@@ -12,31 +12,52 @@
 (function () {
     'use strict';
 
-    const TITLE_BTN_ID = 'mpv-open-btn';
     const MENU_ID = 'mpv-context-menu';
 
     // youtube enforces Trusted Types and blocks raw HTML string assignment
     const SVG_NS = 'http://www.w3.org/2000/svg';
 
+    // mpv logo
     function createPlayIcon(size) {
         size = size || 14;
         const svg = document.createElementNS(SVG_NS, 'svg');
-        svg.setAttribute('viewBox', '0 0 24 24');
+        svg.setAttribute('viewBox', '0 0 60 60');
         svg.setAttribute('width', String(size));
         svg.setAttribute('height', String(size));
-        svg.setAttribute('fill', 'none');
-        svg.setAttribute('stroke', '#a855f7');
-        svg.setAttribute('stroke-width', '2');
-        svg.setAttribute('stroke-linejoin', 'round');
-        svg.setAttribute('stroke-linecap', 'round');
         svg.style.display = 'block';
         svg.style.pointerEvents = 'none';
 
-        const path = document.createElementNS(SVG_NS, 'path');
-        path.setAttribute('d', 'M6 4l14 8-14 8z');
-        svg.appendChild(path);
+        const g = document.createElementNS(SVG_NS, 'g');
+        g.setAttribute('transform', 'translate(30,30) scale(0.92) translate(-30,-30)');
+
+        const circle = document.createElementNS(SVG_NS, 'circle');
+        circle.setAttribute('cx', '30');
+        circle.setAttribute('cy', '30');
+        circle.setAttribute('r', '29');
+        circle.setAttribute('fill', 'none');
+        circle.setAttribute('stroke', '#ffffff');
+        circle.setAttribute('stroke-width', '2');
+        g.appendChild(circle);
+
+        const tri = document.createElementNS(SVG_NS, 'path');
+        tri.setAttribute('d', 'M 24 20 L 24 40 L 38 30 Z');
+        tri.setAttribute('fill', '#ffffff');
+        tri.setAttribute('stroke', 'none');
+        g.appendChild(tri);
+
+        svg.appendChild(g);
 
         return svg;
+    }
+
+    function createMpvButton(iconSize, cssText) {
+        const b = document.createElement('button');
+        b.className = 'mpv-icon-btn';
+        b.title = 'Watch in mpv';
+        b.setAttribute('aria-label', 'Watch in mpv');
+        b.appendChild(createPlayIcon(iconSize));
+        b.style.cssText = cssText;
+        return b;
     }
 
     // hover + press-down states for our icon buttons
@@ -56,13 +77,12 @@
             background: var(--yt-spec-badge-chip-background-hover, #4a4a4a) !important;
         }
         .mpv-icon-btn:active svg {
-            stroke: #c084fc;
+            color: #c084fc;
         }
     `;
     document.head.appendChild(btnStyle);
 
-    // --- helpers -------------------------------------------------------
-
+    // helpers
     function extractVideoUrl(url) {
         try {
             const u = new URL(url, location.href);
@@ -121,46 +141,7 @@
         return null;
     }
 
-    // --- title button (watch page) --------------------------------------
-
-    function injectTitleButton() {
-        const existing = document.getElementById(TITLE_BTN_ID);
-
-        if (!location.pathname.startsWith('/watch')) {
-            if (existing) existing.remove();
-            return;
-        }
-
-        const titleEl = document.querySelector('ytd-watch-metadata #title h1');
-        if (!titleEl) return;
-
-        if (existing) {
-            if (existing.parentElement === titleEl) return; // already in place
-            existing.remove();
-        }
-
-        const b = document.createElement('button');
-        b.id = TITLE_BTN_ID;
-        b.className = 'mpv-icon-btn';
-        b.title = 'watch in mpv';
-        b.setAttribute('aria-label', 'watch in mpv');
-        b.appendChild(createPlayIcon(14));
-        b.style.cssText =
-            'margin-left:12px;vertical-align:middle;display:inline-flex;' +
-            'align-items:center;justify-content:center;' +
-            'width:30px;height:30px;padding:0;border:none;border-radius:50%;' +
-            'cursor:pointer;' +
-            'background:var(--yt-spec-badge-chip-background,#272727);' +
-            'box-shadow:0 1px 3px rgba(0,0,0,0.4);';
-        b.addEventListener('click', () => {
-            const u = currentWatchUrl();
-            if (u) openInMpv(u);
-        });
-        titleEl.appendChild(b);
-    }
-
-    // --- native "..." action menu injection --------------------------------
-
+    // native "..." action menu injection
     let pendingVideoUrl = null;
 
     function findContainerVideoUrl(el) {
@@ -187,7 +168,7 @@
         const item = document.createElement('yt-list-item-view-model');
         item.className = 'ytListItemViewModelHost';
         item.setAttribute('role', 'menuitem');
-        item.setAttribute('aria-label', 'watch in mpv');
+        item.setAttribute('aria-label', 'Watch in mpv');
         item.dataset.mpvItem = '1';
 
         const wrapper = document.createElement('div');
@@ -229,32 +210,38 @@
     });
     nativeMenuObserver.observe(document.body, { childList: true, subtree: true });
 
-    // --- feed title buttons (home page, search, sidebar, etc) --------------
-
+    // feed title buttons (home page, search, sidebar, etc)
     function injectFeedButtons() {
         const titles = document.querySelectorAll('a#video-title-link, a#video-title');
         titles.forEach((titleEl) => {
-            if (titleEl.dataset.mpvDone) return;
+            const container = titleEl.closest('ytd-video-renderer, ytd-rich-item-renderer, ytd-compact-video-renderer, ytd-grid-video-renderer');
+            if (!container || container.dataset.mpvDone) return;
             const url = extractVideoUrl(titleEl.href);
             if (!url) return;
-            titleEl.dataset.mpvDone = '1';
 
-            const btn = document.createElement('button');
-            btn.className = 'mpv-icon-btn';
-            btn.title = 'watch in mpv';
-            btn.setAttribute('aria-label', 'watch in mpv');
-            btn.appendChild(createPlayIcon(14));
-            btn.style.cssText =
+            // place the button on the metadata row (author / views / upload time)
+            const metaRow = container.querySelector('#metadata-line');
+            if (!metaRow) return; // wait until the metadata row is rendered
+            container.dataset.mpvDone = '1';
+            const target = metaRow;
+
+            const btn = createMpvButton(14,
                 'margin-left:8px;display:inline-flex;align-items:center;justify-content:center;' +
                 'width:22px;height:22px;padding:0;border:none;border-radius:50%;' +
                 'cursor:pointer;vertical-align:middle;flex-shrink:0;' +
-                'background:var(--yt-spec-badge-chip-background,#272727);';
+                'background:var(--yt-spec-badge-chip-background,#272727);');
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 openInMpv(url);
             });
-            titleEl.insertAdjacentElement('afterend', btn);
+            if (metaRow) {
+                metaRow.style.flexWrap = 'nowrap';
+                metaRow.style.alignItems = 'center';
+                const lastItem = metaRow.querySelector('span.inline-metadata-item:last-child, .inline-metadata-item:last-child');
+                if (lastItem) lastItem.insertAdjacentElement('afterend', btn);
+                else metaRow.appendChild(btn);
+            } else titleEl.insertAdjacentElement('afterend', btn);
         });
     }
 
@@ -269,32 +256,82 @@
             if (!url) return;
             h3.dataset.mpvDone = '1';
 
-            h3.style.display = 'flex';
-            h3.style.alignItems = 'center';
-            h3.style.gap = '6px';
+            const lockup = h3.closest('yt-lockup-view-model, ytd-rich-item-renderer, ytd-video-renderer');
+            const meta = lockup && (lockup.querySelector('yt-content-metadata-view-model') || lockup.querySelector('.yt-lockup-metadata-view-model') || lockup.querySelector('#metadata-line') || lockup.querySelector('#metadata'));
+            const metaRow = meta && (meta.querySelector('.ytContentMetadataViewModelMetadataRow') || meta.querySelector('[role="group"]') || meta);
 
-            const btn = document.createElement('button');
-            btn.className = 'mpv-icon-btn';
-            btn.title = 'watch in mpv';
-            btn.setAttribute('aria-label', 'watch in mpv');
-            btn.appendChild(createPlayIcon(11));
-            btn.style.cssText =
-                'flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;' +
+            if (!meta) {
+                h3.style.display = 'flex';
+                h3.style.alignItems = 'center';
+                h3.style.gap = '6px';
+            }
+
+            const btn = createMpvButton(11,
+                'margin-left:5px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;' +
                 'width:20px;height:20px;padding:0;border:none;border-radius:50%;cursor:pointer;' +
-                'background:var(--yt-spec-badge-chip-background,#272727);';
+                'background:var(--yt-spec-badge-chip-background,#272727);');
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 openInMpv(url);
             });
-            h3.appendChild(btn);
+            if (meta) {
+                try { meta.style.flexWrap = 'nowrap'; meta.style.alignItems = 'center'; } catch (e) { }
+                const row = metaRow || meta;
+                try { row.style.flexWrap = 'nowrap'; row.style.alignItems = 'center'; } catch (e) { }
+                const last = row.lastElementChild;
+                if (last) last.insertAdjacentElement('afterend', btn);
+                else row.appendChild(btn);
+            } else h3.appendChild(btn);
         });
     }
 
-    // --- wiring -----------------------------------------------------------
+    // action bar button (watch page: likes / share / save row)
+    function getActionBarContainer() {
+        const selectors = [
+            '#top-level-buttons-computed',
+            '#flexible-item-buttons',
+            'ytd-menu-renderer #top-level-buttons-computed',
+        ];
+        for (const s of selectors) {
+            const el = document.querySelector(s);
+            if (el) return el;
+        }
+        return null;
+    }
 
+    function injectActionBarButton() {
+        const existing = document.getElementById('mpv-action-btn');
+
+        if (!location.pathname.startsWith('/watch')) {
+            if (existing) existing.remove();
+            return;
+        }
+
+        const container = getActionBarContainer();
+        if (!container) return;
+
+        if (existing) {
+            if (existing.parentElement === container) return;
+            existing.remove();
+        }
+
+        const b = createMpvButton(24,
+            'margin-left:8px;display:inline-flex;align-items:center;justify-content:center;' +
+            'width:40px;height:40px;padding:0;border:none;border-radius:50%;cursor:pointer;' +
+            'background:var(--yt-spec-badge-chip-background,#272727);' +
+            'box-shadow:0 1px 3px rgba(0,0,0,0.4);');
+        b.id = 'mpv-action-btn';
+        b.addEventListener('click', () => {
+            const u = currentWatchUrl();
+            if (u) openInMpv(u);
+        });
+        container.appendChild(b);
+    }
+
+    // wiring
     function injectAll() {
-        injectTitleButton();
+        injectActionBarButton();
         injectFeedButtons();
         injectLockupButtons();
     }

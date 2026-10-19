@@ -15,6 +15,26 @@
 
     function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+    async function copyText(text) {
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch (e) {
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                const ok = document.execCommand('copy');
+                ta.remove();
+                if (ok) return true;
+            } catch (_) { }
+            return false;
+        }
+    }
+
     function waitFor(fn, timeout = 2000, step = 50) {
         const end = Date.now() + timeout;
         return new Promise(resolve => {
@@ -44,7 +64,7 @@
         const copyItem = [...menu.querySelectorAll('[role="menuitem"]')]
             .find(el => /copy link/i.test((el.textContent || '').trim()));
         if (copyItem) copyItem.click();
-        await sleep(300);
+        await sleep(500);
         // close the share box if it is still open
         if (document.querySelector('[role="menu"]')) {
             document.dispatchEvent(new KeyboardEvent('keydown', {
@@ -96,17 +116,15 @@
                 setTimeout(() => { newDiv.innerHTML = defaultSVG; }, 1000);
 
                 // Trigger X's native share flow (opens the share box and clicks "Copy link")
-                try {
-                    await triggerNativeShare(article);
-                } catch (err) {
-                    console.error('Failed to trigger native share: ', err);
-                }
-                try {
-                    await navigator.clipboard.writeText(href);
-                    console.log('Copied to clipboard: ' + href);
-                } catch (err) {
-                    console.error('Failed to copy to clipboard: ' + href, err);
-                }
+                const ok = await copyText(href);
+                if (ok) console.log('Copied to clipboard: ' + href);
+                else console.error('Failed to copy to clipboard: ' + href);
+                triggerNativeShare(article)
+                    .then(async () => {
+                        const restored = await copyText(href);
+                        if (!restored) console.error('Failed to restore clipboard: ' + href);
+                    })
+                    .catch(err => console.error('Failed to trigger native share: ', err));
             };
             sixthParent.insertBefore(newDiv, secondChild);
         }
